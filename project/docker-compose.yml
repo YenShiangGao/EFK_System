@@ -1,0 +1,53 @@
+version: '3'
+services:
+  nginx:
+    image: nginx:latest
+    ports:
+      - "8080:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf:delegated
+      - ./server:/var/www/:delegated
+    depends_on:
+      - php
+      - fluentd
+    logging:
+      driver: "fluentd"
+      options:
+        fluentd-address: localhost:24225
+        fluentd-async: 'true'
+        tag: docker.space
+
+  php:
+    container_name: php-laravel
+    build: ./php
+    volumes:
+      - ./server:/var/www/:delegated
+
+  db:
+    build: ./mysql
+    volumes:
+      - ./mysql/data/:/var/lib/mysql
+    ports:
+      - "3306:3306"
+
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin:latest
+    ports:
+      - "8811:80"
+    depends_on:
+      - db
+
+  fluentd:
+    build: ./fluentd
+    container_name: space_fluentd
+    volumes:
+      - ./fluentd/conf:/fluentd/etc
+      - ./www/backend-gameopen/storage/logs:/etc/logs
+    ports:
+      - "24225:24224"
+      - "24225:24224/udp"
+    
+networks:
+  default:
+    external: true
+    name: efk_network
